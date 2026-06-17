@@ -9,200 +9,185 @@ st.set_page_config(
 
 st.title("필수 생활시간에 따라 변하는 청소년 평균 수면시간")
 
-# -----------------------
-# 파일 불러오기
-# -----------------------
+st.markdown("---")
 
-life_file = "life.xlsx.xlsx"
-sleep_file = "sleep_data.xlsx.xlsx"
+# ====================================
+# 데이터 불러오기
+# ====================================
 
-st.header("1. 데이터 불러오기")
+life = pd.read_excel("life.xlsx.xlsx")
+sleep = pd.read_excel("sleep_data.xlsx.xlsx")
 
-try:
-    life_excel = pd.ExcelFile(life_file)
-    sleep_excel = pd.ExcelFile(sleep_file)
+# ------------------------------------
+# 숫자 데이터 자동 추출
+# ------------------------------------
 
-    st.success("파일 불러오기 성공")
+life_num = life.select_dtypes(include=np.number)
+sleep_num = sleep.select_dtypes(include=np.number)
 
-except Exception as e:
-    st.error("파일 불러오기 실패")
-    st.write(e)
-    st.stop()
+# 첫 번째 숫자열 = 연도 제외 데이터라고 가정
+life_values = life_num.iloc[:, 1]
+sleep_values = sleep_num.iloc[:, 1]
 
-# -----------------------
-# 시트 확인
-# -----------------------
+# 연도
+years = life_num.iloc[:, 0]
 
-st.header("2. 시트 구조 확인")
+# ====================================
+# 그래프 1
+# ====================================
 
-st.write("생활시간 파일 시트")
-st.write(life_excel.sheet_names)
+st.header("1. 필수생활시간 변화 추이")
 
-st.write("수면시간 파일 시트")
-st.write(sleep_excel.sheet_names)
+graph1 = pd.DataFrame({
+    "연도": years,
+    "필수생활시간": life_values
+})
 
-# -----------------------
-# 첫번째 시트 자동 읽기
-# -----------------------
-
-life_df = pd.read_excel(
-    life_file,
-    sheet_name=life_excel.sheet_names[0]
+st.line_chart(
+    graph1.set_index("연도")
 )
 
-sleep_df = pd.read_excel(
-    sleep_file,
-    sheet_name=sleep_excel.sheet_names[0]
+increase = (
+    (life_values.iloc[-1] - life_values.iloc[0])
+    / life_values.iloc[0]
+) * 100
+
+st.write(
+    f"전체 기간 동안 필수생활시간은 {increase:.2f}% 변화하였다."
 )
 
-# -----------------------
-# 데이터 확인
-# -----------------------
+st.markdown("---")
 
-st.header("3. 데이터 미리보기")
+# ====================================
+# 그래프 2
+# ====================================
 
-col1, col2 = st.columns(2)
+st.header("2. 청소년 평균 수면시간 변화")
 
-with col1:
-    st.subheader("생활시간 데이터")
+graph2 = pd.DataFrame({
+    "연도": years,
+    "수면시간": sleep_values
+})
 
-    st.write("컬럼명")
-
-    st.write(
-        life_df.columns.tolist()
-    )
-
-    st.dataframe(
-        life_df.head(10)
-    )
-
-with col2:
-    st.subheader("수면시간 데이터")
-
-    st.write("컬럼명")
-
-    st.write(
-        sleep_df.columns.tolist()
-    )
-
-    st.dataframe(
-        sleep_df.head(10)
-    )
-
-# -----------------------
-# 숫자형 데이터 자동 추출
-# -----------------------
-
-st.header("4. 숫자 데이터 자동 분석")
-
-life_numeric = life_df.select_dtypes(
-    include=np.number
+st.line_chart(
+    graph2.set_index("연도")
 )
 
-sleep_numeric = sleep_df.select_dtypes(
-    include=np.number
+sleep_change = (
+    (sleep_values.iloc[-1] - sleep_values.iloc[0])
+    / sleep_values.iloc[0]
+) * 100
+
+st.write(
+    f"전체 기간 동안 평균 수면시간은 {sleep_change:.2f}% 변화하였다."
 )
 
-st.subheader("생활시간 숫자 데이터")
+st.markdown("---")
 
-if not life_numeric.empty:
-    st.dataframe(life_numeric)
+# ====================================
+# 비교 그래프
+# ====================================
 
-else:
-    st.warning("숫자 데이터 없음")
+st.header("3. 두 변수 비교")
 
-st.subheader("수면시간 숫자 데이터")
+compare = pd.DataFrame({
+    "필수생활시간": life_values.values,
+    "수면시간": sleep_values.values
+})
 
-if not sleep_numeric.empty:
-    st.dataframe(sleep_numeric)
+st.bar_chart(compare)
 
-else:
-    st.warning("숫자 데이터 없음")
+st.markdown("---")
 
-# -----------------------
-# 그래프 자동 생성
-# -----------------------
-
-st.header("5. 그래프")
-
-if not life_numeric.empty:
-    st.subheader("생활시간 변화")
-
-    st.line_chart(
-        life_numeric
-    )
-
-if not sleep_numeric.empty:
-    st.subheader("수면시간 변화")
-
-    st.line_chart(
-        sleep_numeric
-    )
-
-# -----------------------
-# 기초 통계
-# -----------------------
-
-st.header("6. 기초 통계")
-
-if not sleep_numeric.empty:
-
-    st.write(
-        sleep_numeric.describe()
-    )
-
-# -----------------------
+# ====================================
 # 상관관계 분석
-# -----------------------
+# ====================================
 
-st.header("7. 상관관계 분석")
+st.header("4. 통계 분석")
 
-if not life_numeric.empty and not sleep_numeric.empty:
+corr = life_values.corr(sleep_values)
 
-    min_len = min(
-        len(life_numeric),
-        len(sleep_numeric)
-    )
+st.metric(
+    "상관계수",
+    round(corr, 3)
+)
 
-    a = life_numeric.iloc[:min_len, 0]
-    b = sleep_numeric.iloc[:min_len, 0]
+if corr > 0.7:
+    relation = "강한 양의 상관관계"
 
-    corr = a.corr(b)
+elif corr < -0.7:
+    relation = "강한 음의 상관관계"
 
-    st.metric(
-        "상관계수",
-        round(corr, 3)
-    )
+else:
+    relation = "약한 상관관계"
 
-    if corr > 0.7:
-        st.success(
-            "강한 양의 상관관계"
-        )
+st.write("분석 결과 :", relation)
 
-    elif corr < -0.7:
-        st.success(
-            "강한 음의 상관관계"
-        )
+st.markdown("---")
 
-    else:
-        st.warning(
-            "뚜렷한 상관관계 없음"
-        )
+# ====================================
+# 변화율 비교
+# ====================================
 
-# -----------------------
+st.header("5. 변화율 분석")
+
+change_df = pd.DataFrame({
+    "구분": ["필수생활시간", "평균수면시간"],
+    "변화율": [increase, sleep_change]
+})
+
+st.bar_chart(
+    change_df.set_index("구분")
+)
+
+st.markdown("---")
+
+# ====================================
 # 탐구 결론
-# -----------------------
+# ====================================
 
-st.header("8. 탐구 결론")
+st.header("6. 탐구 결론")
 
-st.write("""
-본 연구는 필수 생활시간과 청소년 평균 수면시간의
-변화를 분석하여 두 변수 사이의 관계를 파악하였다.
+if corr < 0:
+    final_text = """
+분석 결과 필수생활시간이 증가할수록 청소년 평균 수면시간은 감소하는 경향을 보였다.
 
-수집된 데이터를 기반으로 그래프와 상관계수를 분석한 결과,
-생활시간 변화가 수면시간 변화와 일정한 관련이 있음을
-확인할 수 있었다.
+이는 학업, 이동시간, 식사, 학교생활 등 필수생활에 사용되는 시간이 늘어나면서
+수면시간이 상대적으로 감소했을 가능성을 보여준다.
 
-추가 분석을 통해 청소년 건강과 학업환경 개선에
-활용할 수 있다.
-""")
+따라서 청소년 건강을 위해 생활시간 구조 개선이 필요하다.
+"""
+
+else:
+    final_text = """
+분석 결과 두 변수 사이에 직접적인 연관성이 발견되었다.
+
+생활시간 변화는 청소년의 수면시간 변화에 영향을 줄 가능성이 있다.
+
+추가 연구를 통해 학업과 건강의 균형을 고려해야 한다.
+"""
+
+st.write(final_text)
+
+st.markdown("---")
+
+# ====================================
+# 통계 요약
+# ====================================
+
+st.header("7. 최종 통계 요약")
+
+summary = pd.DataFrame({
+    "항목": [
+        "필수생활시간 변화율",
+        "수면시간 변화율",
+        "상관계수"
+    ],
+    "결과": [
+        round(increase,2),
+        round(sleep_change,2),
+        round(corr,3)
+    ]
+})
+
+st.dataframe(summary)
